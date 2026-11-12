@@ -45,9 +45,9 @@ jobs:
       - name: Install release resources
         run: |
           python scripts/install-release.py \
-            --tag v1.8.3 \
-            --asset-kind source-data \
-            --root .
+          --tag v1.8.3 \
+          --root .
+            
 
       # 6. 安装 Node 依赖
       - name: Install dependencies
