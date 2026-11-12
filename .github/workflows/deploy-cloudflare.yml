@@ -1,0 +1,72 @@
+
+name: Build and Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉取源码
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # 2. 安装 Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      # 3. 安装 Python
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      # 4. 安装 FFmpeg
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffmpeg -encoders | grep libmp3lame
+
+      # 5. 安装教材资源
+      - name: Install release resources
+        run: |
+          python scripts/install-release.py \
+            --tag v1.8.3 \
+            --asset-kind source-data \
+            --root .
+
+      # 6. 安装 Node 依赖
+      - name: Install dependencies
+        run: npm ci
+
+      # 7. 构建网站（包含音频生成）
+      - name: Build website
+        run: npm run build
+
+      # 8. 检查构建产物
+      - name: Check build output
+        run: |
+          test -f apps/web/out/index.html
+          du -sh apps/web/out
+
+      # 9. 发布到 Cloudflare Pages
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/out --project-name=你的Cloudflare项目名称
